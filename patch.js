@@ -3,8 +3,8 @@
   let saveGhost = null;
   let restoreTimer = 0;
 
-  const isOurUiNode = (node) =>
-    !!(node && node.closest && node.closest('.ig-nvc-bar, .ig-nvc-dl, .ig-nvc-consent'));
+  const OUR_UI = '.ig-nvc-bar, .ig-nvc-dl, .ig-nvc-consent, .ig-nvc-fs-btn, .ig-nvc-fs-play, .ig-nvc-fs-exit, .ig-nvc-fs-hit';
+  const isOurUiNode = (node) => !!(node && node.closest && node.closest(OUR_UI));
 
   const imageAtPoint = (event) => {
     if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number') return null;
@@ -438,7 +438,12 @@
     if (event.source !== window) return;
     if (event.origin !== window.location.origin) return;
     const data = event.data;
-    if (!data || data.source !== 'ig-nvc' || data.type !== 'need-url') return;
+    if (!data || data.source !== 'ig-nvc') return;
+    if (data.type === 'request-fs') {
+      requestPageFullscreen();
+      return;
+    }
+    if (data.type !== 'need-url') return;
     const btn = document.querySelector('.ig-nvc-dl');
     const video = videoForDownloadBtn(btn);
     if (video) startDownload(video, btn);
@@ -474,6 +479,59 @@
       },
     });
   }
+
+  const origPause = HTMLMediaElement.prototype.pause;
+  HTMLMediaElement.prototype.pause = function igNvcPause() {
+    try {
+      const html = document.documentElement;
+      if (
+        html.classList.contains('ig-nvc-fs') &&
+        this.classList.contains('ig-nvc-fs-target') &&
+        html.dataset.igNvcUserPaused !== '1'
+      ) {
+        return;
+      }
+    } catch (_) {}
+    return origPause.apply(this, arguments);
+  };
+
+  const origExitFullscreen = Document.prototype.exitFullscreen;
+  const origWebkitExitFullscreen = Document.prototype.webkitExitFullscreen;
+
+  const allowPageExitFullscreen = () =>
+    document.documentElement.dataset.igNvcFsExit === '1' ||
+    !document.documentElement.classList.contains('ig-nvc-fs');
+
+  if (typeof origExitFullscreen === 'function') {
+    Document.prototype.exitFullscreen = function igNvcExitFullscreen() {
+      if (!allowPageExitFullscreen()) return Promise.resolve();
+      return origExitFullscreen.apply(this, arguments);
+    };
+  }
+  if (typeof origWebkitExitFullscreen === 'function') {
+    Document.prototype.webkitExitFullscreen = function igNvcWebkitExitFullscreen() {
+      if (!allowPageExitFullscreen()) return;
+      return origWebkitExitFullscreen.apply(this, arguments);
+    };
+  }
+
+  const requestPageFullscreen = () => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    const go = (node) => {
+      if (!node) return Promise.reject(new Error('no node'));
+      try {
+        if (typeof node.requestFullscreen === 'function') {
+          return node.requestFullscreen({ navigationUI: 'hide' }).catch(() => node.requestFullscreen());
+        }
+        if (typeof node.webkitRequestFullscreen === 'function') {
+          node.webkitRequestFullscreen();
+          return Promise.resolve();
+        }
+      } catch (_) {}
+      return Promise.reject(new Error('no api'));
+    };
+    go(document.documentElement).catch(() => go(document.body)).catch(() => {});
+  };
 
   Object.defineProperty(HTMLMediaElement.prototype, 'controls', {
     configurable: true,
@@ -585,7 +643,7 @@
   const isNativeControlHit = (event) => {
     const t = event.target;
     if (!t || !t.closest) return false;
-    if (t.closest('.ig-nvc-bar, .ig-nvc-dl, .ig-nvc-consent')) return false;
+    if (t.closest(OUR_UI)) return false;
     if (t.closest('button, [role="button"], a')) return true;
     const svg = t.closest('svg');
     if (!svg) return false;
@@ -759,8 +817,23 @@
 
   const onScrubDown = (event) => {
     if (event.button !== 0) return;
-    if (isNativeControlHit(event)) return;
     const t = event.target;
+    if (t && t.closest) {
+      if (t.closest('.ig-nvc-fs-exit')) {
+        document.documentElement.dataset.igNvcFsExit = '1';
+        try {
+          if (origExitFullscreen) origExitFullscreen.call(document);
+          else if (origWebkitExitFullscreen) origWebkitExitFullscreen.call(document);
+        } catch (_) {}
+        return;
+      }
+      if (t.closest('.ig-nvc-fs-btn')) {
+        requestPageFullscreen();
+        return;
+      }
+      if (t.closest('.ig-nvc-fs-play, .ig-nvc-fs-hit')) return;
+    }
+    if (isNativeControlHit(event)) return;
     const dlBtn = downloadButtonAt(event);
     if (dlBtn || isOurDownload(event)) {
       const video = videoForDownloadBtn(dlBtn || (t && t.closest && t.closest('.ig-nvc-dl')));
@@ -824,12 +897,28 @@
       childList: true,
       subtree: true,
     });
+    window.addEventListener(
+      'pointerdown',
+      (event) => {
+        if (event.button !== 0) return;
+        const t = event.target;
+        if (!t || !t.closest) return;
+        if (t.closest('.ig-nvc-fs-btn')) requestPageFullscreen();
+      },
+      true,
+    );
     document.addEventListener('pointerdown', onScrubDown, true);
     document.addEventListener('pointermove', onScrubMove, true);
     document.addEventListener('pointerup', onScrubUp, true);
     document.addEventListener('pointercancel', onScrubUp, true);
     document.addEventListener('click', (event) => {
       if (event.button !== 0) return;
+      const t = event.target;
+      if (t && t.closest && t.closest('.ig-nvc-fs-btn')) {
+        requestPageFullscreen();
+        return;
+      }
+      if (t && t.closest && t.closest('.ig-nvc-fs-play, .ig-nvc-fs-exit, .ig-nvc-fs-hit')) return;
       if (isNativeControlHit(event)) return;
       if (isOurDownload(event) || downloadButtonAt(event)) {
         event.stopImmediatePropagation();
