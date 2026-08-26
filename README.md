@@ -22,7 +22,7 @@ Keeping a video is optional. The extension does not send files, cookies, or acco
 
 Copy-paste texts, permission justifications, and screenshot notes are in [`store/LISTING.md`](store/LISTING.md).
 
-1. Host [`privacy.html`](privacy.html) on a public HTTPS URL (GitHub Pages is fine) and paste that URL into the dashboard Privacy fields.
+1. Privacy policy URL (paste this into the Chrome Web Store dashboard): https://omersengul1.github.io/instagram-better-controls/
 2. Upload `store/promo-small-440x280.png` as the small promo tile.
 3. Add at least one 1280×800 screenshot of the **real** seek bar / keep button (see `store/LISTING.md`).
 4. Pack a ZIP with `pack.ps1` (manifest at the zip root) and upload it.

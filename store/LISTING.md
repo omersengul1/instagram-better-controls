@@ -58,7 +58,7 @@ Certify Limited Use: yes. The extension does not sell or transfer user data for 
 
 ## Privacy policy URL
 
-Host `privacy.html` from this repo on a public HTTPS site, then paste that URL here.
+https://omersengul1.github.io/instagram-better-controls/
 
 ## Permission justifications
 
