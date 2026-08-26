@@ -1,9 +1,8 @@
-<img width="440" height="280" alt="promo-small-440x280" src="https://github.com/user-attachments/assets/adace537-7889-4221-aac8-501007cb75bb" />
-
-
 # Instagram Better Controls
 
 Chrome MV3 extension. Adds a seek bar to Reels, posts, and Stories on Instagram.
+
+<img width="440" height="280" alt="promo-small-440x280" src="https://github.com/user-attachments/assets/adace537-7889-4221-aac8-501007cb75bb" />
 
 Instagram Better Controls is an independent product. It is **not affiliated with, endorsed by, or produced by Meta or Instagram**.
 
