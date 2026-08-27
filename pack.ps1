@@ -22,8 +22,6 @@ $items = @(
   'popup.html',
   'popup.css',
   'popup.js',
-  'grant.html',
-  'grant.js',
   'icons'
 )
 

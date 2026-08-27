@@ -19,7 +19,6 @@ Do not use mockups or other people’s Reels as marketing art. Use a video you o
    - Reels or feed: seek bar visible at the bottom of the video
    - The same surface with the keep button visible (top-right of the video)
    - Optional: Stories with the seekable top strip
-   - Optional: the first-keep confirmation dialog
 4. Upload those PNGs in the dashboard Graphic assets section.
 5. Upload `promo-small-440x280.png` as the small tile. Do not add Instagram’s camera glyph or spectrum gradient to new art.
 

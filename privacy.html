@@ -25,7 +25,7 @@
   <body>
     <main>
       <h1>Privacy Policy</h1>
-      <p class="meta">Instagram Better Controls · Last updated: 26 August 2026</p>
+      <p class="meta">Instagram Better Controls · Last updated: 28 August 2026</p>
       <p>
         Instagram Better Controls is an independent Chrome extension. It is not
         affiliated with, endorsed by, or produced by Meta Platforms, Inc. or Instagram.
@@ -48,12 +48,7 @@
         <li>
           Media file URLs already present on the page (Instagram CDN hosts
           <code>cdninstagram.com</code> and <code>fbcdn.net</code>) when you
-          choose to keep a video, so Chrome can write that file through its
-          Save As dialog.
-        </li>
-        <li>
-          A local preference that you accepted the first-time keep disclosure.
-          This is stored with <code>chrome.storage.local</code> on your device.
+          choose to keep a video, so the file can be saved to this device.
         </li>
       </ul>
       <p>Instagram Better Controls does not collect, store, or transmit:</p>
@@ -67,8 +62,8 @@
       <h2>How the information is used</h2>
       <p>
         Video position data is used only to update the on-page seek bar. Media
-        URLs are used only to start a Chrome Save As dialog that you initiate.
-        Files are written on your device through the browser’s downloads UI.
+        URLs are used only to start a download that you initiate.
+        Files are saved to the download folder your browser uses.
       </p>
       <p>
         The use of information received from Chrome APIs will adhere to the
@@ -90,20 +85,18 @@
           Access to instagram.com: inject the seek bar and keep button on that site.
         </li>
         <li>
-          Optional <code>downloads</code> and CDN host access: requested only when
-          you keep a video, so the file can be written through Chrome’s Save As
-          dialog.
+          CDN host access for <code>cdninstagram.com</code> and <code>fbcdn.net</code>:
+          used only when you click Keep, so the file can be written on this device.
         </li>
         <li>
-          <code>storage</code>: remember that you accepted the keep disclosure.
+          Downloads: save the chosen video file to this computer’s download folder.
         </li>
       </ul>
 
       <h2>Retention</h2>
       <p>
-        We do not retain user data on our servers. The consent flag remains on
-        your device until you remove the extension or clear site/extension data.
-        Kept video files remain wherever you chose in the Save As dialog.
+        We do not retain user data on our servers.
+        Kept video files remain in the download location your browser uses.
       </p>
 
       <h2>Contact</h2>

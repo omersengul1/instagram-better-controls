@@ -3,7 +3,7 @@
   let saveGhost = null;
   let restoreTimer = 0;
 
-  const OUR_UI = '.ig-nvc-bar, .ig-nvc-dl, .ig-nvc-consent, .ig-nvc-fs-btn, .ig-nvc-fs-play, .ig-nvc-fs-exit, .ig-nvc-fs-hit';
+  const OUR_UI = '.ig-nvc-bar, .ig-nvc-k, .ig-nvc-fs-btn, .ig-nvc-fs-play, .ig-nvc-fs-exit, .ig-nvc-fs-hit';
   const isOurUiNode = (node) => !!(node && node.closest && node.closest(OUR_UI));
 
   const imageAtPoint = (event) => {
@@ -417,22 +417,41 @@
 
   const startDownload = (video, btn) => {
     if (!(video instanceof HTMLVideoElement)) return;
-    if (btn) {
-      btn.classList.add('ig-nvc-dl-busy');
-      btn.title = 'Saving…';
-    }
     const url = findVideoUrl(video);
-    if (btn) {
-      btn.classList.remove('ig-nvc-dl-busy');
-      btn.title = url ? 'Save video' : 'Video not found';
+    const filename = filenameFor(video);
+    if (btn) btn.title = url ? 'Keep video' : 'Video not found';
+    if (url && isVideoHttpUrl(url) && isAllowedCdnHost(url)) {
+      video.dataset.igNvcDl = url;
     }
-    if (!url || !isVideoHttpUrl(url) || !isAllowedCdnHost(url)) return;
-    video.dataset.igNvcDl = url;
-    window.postMessage(
-      { source: 'ig-nvc', type: 'download', url, filename: filenameFor(video) },
-      window.location.origin,
+    document.documentElement.dispatchEvent(
+      new CustomEvent('ig-nvc-keep', {
+        bubbles: true,
+        detail: {
+          url: url && isVideoHttpUrl(url) && isAllowedCdnHost(url) ? url : '',
+          filename,
+        },
+      }),
     );
   };
+
+  document.addEventListener(
+    'ig-nvc-ask-url',
+    (event) => {
+      const detail = event.detail;
+      if (!detail) return;
+      const btn =
+        (detail.btnId && document.querySelector(`.ig-nvc-k[data-ig-nvc-for="${detail.btnId}"]`)) ||
+        document.querySelector('.ig-nvc-k');
+      const video = videoForDownloadBtn(btn);
+      if (!video) return;
+      const url = findVideoUrl(video);
+      if (!url || !isVideoHttpUrl(url) || !isAllowedCdnHost(url)) return;
+      video.dataset.igNvcDl = url;
+      detail.url = url;
+      detail.filename = filenameFor(video);
+    },
+    true,
+  );
 
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
@@ -441,27 +460,6 @@
     if (!data || data.source !== 'ig-nvc') return;
     if (data.type === 'request-fs') {
       requestPageFullscreen();
-      return;
-    }
-    if (data.type !== 'need-url') return;
-    const btn = document.querySelector('.ig-nvc-dl');
-    const video = videoForDownloadBtn(btn);
-    if (video) startDownload(video, btn);
-    else {
-      const videos = document.querySelectorAll('video');
-      let best = null;
-      let bestArea = 0;
-      videos.forEach((el) => {
-        if (!(el instanceof HTMLVideoElement) || !el.isConnected) return;
-        const rect = el.getBoundingClientRect();
-        if (rect.width < 140 || rect.height < 140) return;
-        const area = rect.width * rect.height;
-        if (area > bestArea) {
-          bestArea = area;
-          best = el;
-        }
-      });
-      if (best) startDownload(best, btn);
     }
   });
 
@@ -771,11 +769,11 @@
 
   const isOurDownload = (event) => {
     const t = event.target;
-    return !!(t && t.closest && t.closest('.ig-nvc-dl'));
+    return !!(t && t.closest && t.closest('.ig-nvc-k'));
   };
 
   const downloadButtonAt = (event) => {
-    const buttons = document.querySelectorAll('.ig-nvc-dl');
+    const buttons = document.querySelectorAll('.ig-nvc-k');
     for (let i = 0; i < buttons.length; i += 1) {
       const btn = buttons[i];
       if (btn.style.display === 'none') continue;
@@ -836,8 +834,8 @@
     if (isNativeControlHit(event)) return;
     const dlBtn = downloadButtonAt(event);
     if (dlBtn || isOurDownload(event)) {
-      const video = videoForDownloadBtn(dlBtn || (t && t.closest && t.closest('.ig-nvc-dl')));
-      if (video) startDownload(video, dlBtn);
+      event.stopImmediatePropagation();
+      event.preventDefault();
       return;
     }
     const story = storyScrubTarget(event);
@@ -923,6 +921,9 @@
       if (isOurDownload(event) || downloadButtonAt(event)) {
         event.stopImmediatePropagation();
         event.preventDefault();
+        const dlBtn = downloadButtonAt(event) || (t && t.closest && t.closest('.ig-nvc-k'));
+        const video = videoForDownloadBtn(dlBtn);
+        if (video) startDownload(video, dlBtn);
         return;
       }
       if (!dragging && !videoForScrub(event) && !storyScrubTarget(event)) return;

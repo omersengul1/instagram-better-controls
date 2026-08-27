@@ -111,14 +111,14 @@
       .ig-nvc-bar.ig-nvc-story .ig-nvc-thumb {
         background: #ffffff;
       }
-      .ig-nvc-dl {
+      .ig-nvc-k {
         position: fixed;
         top: 0;
         left: 0;
         right: auto;
         z-index: 2147483647;
-        width: 28px;
-        height: 28px;
+        width: 36px;
+        height: 36px;
         padding: 0;
         border: 0;
         border-radius: 50%;
@@ -131,16 +131,16 @@
         pointer-events: auto;
         -webkit-tap-highlight-color: transparent;
       }
-      .ig-nvc-dl:hover {
+      .ig-nvc-k:hover {
         background: rgba(0, 0, 0, 0.62);
       }
-      .ig-nvc-dl svg {
+      .ig-nvc-k svg {
         display: block;
-        width: 15px;
-        height: 15px;
+        width: 18px;
+        height: 18px;
       }
       html.ig-nvc-stories .ig-nvc-bar:not(.ig-nvc-story),
-      html.ig-nvc-stories .ig-nvc-dl:not(.ig-nvc-story-dl),
+      html.ig-nvc-stories .ig-nvc-k:not(.ig-nvc-story-k),
       html.ig-nvc-stories .ig-nvc-fs-btn:not(.ig-nvc-story-fs) {
         display: none !important;
       }
@@ -274,7 +274,7 @@
         visibility: visible !important;
         pointer-events: auto !important;
       }
-      html.ig-nvc-fs .ig-nvc-dl,
+      html.ig-nvc-fs .ig-nvc-k,
       html.ig-nvc-fs .ig-nvc-fs-btn {
         display: none !important;
         visibility: hidden !important;
@@ -287,58 +287,24 @@
       html.ig-nvc-fs .ig-nvc-fs-exit {
         display: flex !important;
       }
-      .ig-nvc-dl.ig-nvc-dl-busy {
+      .ig-nvc-k.ig-nvc-k-busy {
         opacity: 0.5;
         pointer-events: none;
       }
-      .ig-nvc-consent {
+      .ig-nvc-toast {
         position: fixed;
-        inset: 0;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
         z-index: 2147483647;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.45);
-        font-family: system-ui, sans-serif;
-      }
-      .ig-nvc-consent-card {
-        width: min(420px, calc(100vw - 32px));
-        padding: 18px 18px 14px;
-        border-radius: 14px;
+        max-width: min(440px, calc(100vw - 24px));
+        padding: 10px 14px;
+        border-radius: 10px;
         background: #101826;
         color: #e8eef7;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-      }
-      .ig-nvc-consent-card h2 {
-        margin: 0 0 8px;
-        font-size: 16px;
-      }
-      .ig-nvc-consent-card p {
-        margin: 0 0 10px;
-        font-size: 13px;
-        line-height: 1.45;
-        color: #c5d0df;
-      }
-      .ig-nvc-consent-actions {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-        margin-top: 12px;
-      }
-      .ig-nvc-consent-actions button {
-        border: 0;
-        border-radius: 8px;
-        padding: 8px 12px;
-        cursor: pointer;
-        font: 600 13px/1.2 system-ui, sans-serif;
-      }
-      .ig-nvc-consent-cancel {
-        background: transparent;
-        color: #c5d0df;
-      }
-      .ig-nvc-consent-ok {
-        background: #e45a8c;
-        color: #101826;
+        font: 600 13px/1.35 system-ui, sans-serif;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+        pointer-events: none;
       }
     `;
     (document.head || document.documentElement).appendChild(style);
@@ -513,7 +479,7 @@
     '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
   const EXIT_FS_ICON =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v5H3"/><path d="M16 3v5h5"/><path d="M8 21v-5H3"/><path d="M16 21v-5h5"/></svg>';
-  const OUR_UI = '.ig-nvc-bar, .ig-nvc-dl, .ig-nvc-consent, .ig-nvc-fs-btn, .ig-nvc-fs-play, .ig-nvc-fs-exit, .ig-nvc-fs-hit';
+  const OUR_UI = '.ig-nvc-bar, .ig-nvc-k, .ig-nvc-fs-btn, .ig-nvc-fs-play, .ig-nvc-fs-exit, .ig-nvc-fs-hit';
   const FS_BTN_SIZE = 40;
   const FS_PLAY_SIZE = 52;
   const STORY_PAUSE_RE = /^(pause|play|duraklat|oynat|pausa|reproducir|anhalten|abspielen)\b/i;
@@ -521,6 +487,14 @@
   const haltUiEvent = (event) => {
     if (typeof event.button === 'number' && event.button !== 0) return;
     event.stopPropagation();
+    if (
+      event.type === 'click' &&
+      event.target &&
+      event.target.closest &&
+      event.target.closest('.ig-nvc-k')
+    ) {
+      return;
+    }
     if (event.type !== 'pointerdown' && event.type !== 'mousedown' && event.type !== 'touchstart') {
       event.preventDefault();
     }
@@ -963,13 +937,8 @@
     }
   };
 
-  const DOWNLOAD_ORIGINS = [
-    'https://*.cdninstagram.com/*',
-    'https://*.fbcdn.net/*',
-  ];
   const CDN_HOST = /(^|\.)cdninstagram\.com$/i;
   const FBCDN_HOST = /(^|\.)fbcdn\.net$/i;
-  const INSTAGRAM_ORIGIN = /^https:\/\/(www\.)?instagram\.com$/i;
 
   const isAllowedDownloadUrl = (urlStr) => {
     try {
@@ -981,120 +950,162 @@
     }
   };
 
-  let pendingSave = null;
-  let consentOpen = false;
+  let saving = false;
+  let toastTimer = 0;
 
-  const sendDownload = (url, filename) => {
-    try {
-      chrome.runtime.sendMessage({ type: 'seekstrip-download', url, filename }, () => {
-        void chrome.runtime.lastError;
-      });
-    } catch (_) {}
+  const showNotice = (text) => {
+    let el = document.getElementById('ig-nvc-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ig-nvc-toast';
+      el.className = 'ig-nvc-toast';
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent = text;
+    el.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.hidden = true;
+    }, 4200);
   };
 
-  const requestSavePermissions = async () => {
-    try {
-      return await chrome.permissions.request({
-        permissions: ['downloads'],
-        origins: DOWNLOAD_ORIGINS,
-      });
-    } catch (_) {
+  const clickAnchor = (href, filename) => {
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = filename || 'video.mp4';
+    a.rel = 'noopener';
+    a.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+    (document.body || document.documentElement).appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const keepFilename = (filename) =>
+    typeof filename === 'string' && filename.toLowerCase().endsWith('.mp4')
+      ? filename
+      : `video-${Date.now()}.mp4`;
+
+  const sendRuntime = (payload) =>
+    new Promise((resolve) => {
+      let done = false;
+      const finish = (value) => {
+        if (done) return;
+        done = true;
+        resolve(value);
+      };
+      const timer = setTimeout(() => finish(null), 8000);
       try {
-        chrome.runtime.sendMessage({ type: 'seekstrip-open-grant' });
-      } catch (__) {}
-      return false;
+        if (!chrome.runtime || !chrome.runtime.sendMessage) {
+          clearTimeout(timer);
+          finish(null);
+          return;
+        }
+        chrome.runtime.sendMessage(payload, (res) => {
+          clearTimeout(timer);
+          if (chrome.runtime.lastError) {
+            finish(null);
+            return;
+          }
+          finish(res || null);
+        });
+      } catch (_) {
+        clearTimeout(timer);
+        finish(null);
+      }
+    });
+
+  const fetchBlob = async (url) => {
+    const opts = {
+      credentials: 'omit',
+      mode: 'cors',
+      referrer: location.href,
+    };
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+      opts.signal = AbortSignal.timeout(90000);
+    }
+    let res;
+    try {
+      res = await fetch(url, Object.assign({}, opts, { cache: 'force-cache' }));
+    } catch (_) {
+      res = null;
+    }
+    if (!res || !res.ok) res = await fetch(url, Object.assign({}, opts, { cache: 'no-store' }));
+    if (!res.ok) throw new Error('http');
+    const blob = await res.blob();
+    if (!blob || blob.size < 64) throw new Error('empty');
+    return blob;
+  };
+
+  const saveBlob = async (url, name) => {
+    const blob = await fetchBlob(url);
+    const href = URL.createObjectURL(blob);
+    clickAnchor(href, name);
+    setTimeout(() => URL.revokeObjectURL(href), 60000);
+  };
+
+  const keepFromUrl = async (url, filename) => {
+    const name = keepFilename(filename);
+    if (!url || !isAllowedDownloadUrl(url)) {
+      showNotice('Video not found');
+      return;
+    }
+    if (saving) return;
+    saving = true;
+    showNotice('Saving…');
+    try {
+      const viaExt = await sendRuntime({
+        type: 'seekstrip-download',
+        url,
+        filename: name,
+      });
+      if (viaExt && viaExt.ok) {
+        showNotice('Saved');
+        return;
+      }
+      await saveBlob(url, name);
+      showNotice('Saved');
+    } catch (_) {
+      clickAnchor(url, name);
+      showNotice('Could not save. Try again, or lower Shields on Instagram.');
+    } finally {
+      saving = false;
     }
   };
 
-  const hideConsent = () => {
-    const el = document.getElementById('ig-nvc-consent');
-    if (el) el.remove();
-    consentOpen = false;
-  };
-
-  const showConsent = () => {
-    if (consentOpen) return;
-    consentOpen = true;
-    const wrap = document.createElement('div');
-    wrap.id = 'ig-nvc-consent';
-    wrap.className = 'ig-nvc-consent';
-    wrap.innerHTML =
-      '<div class="ig-nvc-consent-card" role="dialog" aria-modal="true" aria-labelledby="ig-nvc-consent-title">' +
-      '<h2 id="ig-nvc-consent-title">Keep this video?</h2>' +
-      '<p>Better Controls can keep the current video on your computer. Only keep content you have the right to keep.</p>' +
-      '<p>The file is not sent to our servers. Chrome will ask you to pick a location.</p>' +
-      '<div class="ig-nvc-consent-actions">' +
-      '<button type="button" class="ig-nvc-consent-cancel">Cancel</button>' +
-      '<button type="button" class="ig-nvc-consent-ok">Keep video</button>' +
-      '</div></div>';
-    wrap.addEventListener('click', (event) => {
-      if (event.target === wrap) {
-        pendingSave = null;
-        hideConsent();
-      }
-    });
-    wrap.querySelector('.ig-nvc-consent-cancel').addEventListener('click', () => {
-      pendingSave = null;
-      hideConsent();
-    });
-    wrap.querySelector('.ig-nvc-consent-ok').addEventListener('click', async () => {
-      const granted = await requestSavePermissions();
-      if (!granted) {
-        hideConsent();
-        return;
-      }
-      await chrome.storage.local.set({ seekstripConsent: true });
-      hideConsent();
-      if (pendingSave) tryFlushSave();
-      else {
+  try {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (!msg || msg.type !== 'seekstrip-download-failed') return;
+      if (typeof msg.url !== 'string' || !isAllowedDownloadUrl(msg.url)) return;
+      void (async () => {
+        const name = keepFilename(msg.filename);
         try {
-          window.postMessage({ source: 'ig-nvc', type: 'need-url' }, window.location.origin);
-        } catch (_) {}
-      }
+          await saveBlob(msg.url, name);
+          showNotice('Saved');
+        } catch (_) {
+          clickAnchor(msg.url, name);
+          showNotice('Could not save. Try again, or lower Shields on Instagram.');
+        }
+      })();
     });
-    (document.body || document.documentElement).appendChild(wrap);
-  };
+  } catch (_) {}
 
-  const tryFlushSave = () => {
-    if (!pendingSave) return;
-    sendDownload(pendingSave.url, pendingSave.filename);
-    pendingSave = null;
+  const askUrlFromPage = (btn) => {
+    const detail = {
+      url: '',
+      filename: '',
+      btnId: (btn && btn.dataset && btn.dataset.igNvcFor) || '',
+    };
+    document.documentElement.dispatchEvent(
+      new CustomEvent('ig-nvc-ask-url', { bubbles: true, detail }),
+    );
+    return detail;
   };
-
-  window.addEventListener('message', (event) => {
-    if (event.source !== window) return;
-    if (!INSTAGRAM_ORIGIN.test(event.origin)) return;
-    const data = event.data;
-    if (!data || data.source !== 'ig-nvc' || data.type !== 'download') return;
-    if (typeof data.url !== 'string' || !isAllowedDownloadUrl(data.url)) return;
-    const filename =
-      typeof data.filename === 'string' && data.filename.toLowerCase().endsWith('.mp4')
-        ? data.filename
-        : `seekstrip-${Date.now()}.mp4`;
-    pendingSave = { url: data.url, filename };
-    chrome.storage.local.get('seekstripConsent', (stored) => {
-      if (stored && stored.seekstripConsent) tryFlushSave();
-    });
-  });
 
   document.addEventListener(
-    'click',
-    async (event) => {
-      const t = event.target;
-      if (!t || !t.closest || !t.closest('.ig-nvc-dl')) return;
-      const { seekstripConsent } = await chrome.storage.local.get('seekstripConsent');
-      if (!seekstripConsent) {
-        showConsent();
-        return;
-      }
-      const granted = await requestSavePermissions();
-      if (!granted) return;
-      if (pendingSave) tryFlushSave();
-      else {
-        try {
-          window.postMessage({ source: 'ig-nvc', type: 'need-url' }, window.location.origin);
-        } catch (_) {}
-      }
+    'ig-nvc-keep',
+    (event) => {
+      const d = event.detail || {};
+      void keepFromUrl(d.url, d.filename);
     },
     true,
   );
@@ -1102,11 +1113,21 @@
   const createDownloadButton = () => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'ig-nvc-dl';
+    btn.className = 'ig-nvc-k';
     btn.title = 'Keep video';
     btn.setAttribute('aria-label', 'Keep video');
     btn.innerHTML = DL_ICON;
     bindHalt(btn);
+    btn.addEventListener(
+      'click',
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const detail = askUrlFromPage(btn);
+        void keepFromUrl(detail.url, detail.filename);
+      },
+      true,
+    );
     return btn;
   };
 
@@ -1118,10 +1139,10 @@
       return;
     }
     const topOff = isStoriesPath() ? 64 : isReelsPath() ? 16 : 46;
-    const left = box.right - 42;
+    const left = box.right - 50;
     const top = box.top + topOff;
-    const cx = left + 14;
-    const cy = top + 14;
+    const cx = left + 18;
+    const cy = top + 18;
     if (cx < box.left || cx > box.right || cy < box.top || cy > box.bottom - 24) {
       btn.style.display = 'none';
       return;
@@ -1316,7 +1337,7 @@
     let stopped = false;
 
     const dlBtn = createDownloadButton();
-    dlBtn.classList.add('ig-nvc-story-dl');
+    dlBtn.classList.add('ig-nvc-story-k');
     (document.body || document.documentElement).appendChild(dlBtn);
     const fsBtn = createFullscreenButton('story');
     (document.body || document.documentElement).appendChild(fsBtn);

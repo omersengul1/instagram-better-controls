@@ -42,7 +42,7 @@ No, I am not using remote code.
 
 ## Data usage checkboxes
 
-Check **Website content** (the extension reads the video element and media URLs already on instagram.com to draw the seek bar and, if you click Keep, to start a local save through Chrome’s downloads UI).
+Check **Website content** (the extension reads the video element and media URLs already on instagram.com to draw the seek bar and, if you click Keep, to save the file to your download folder).
 
 Do **not** check:
 - Personally identifiable information
@@ -62,16 +62,13 @@ https://omersengul1.github.io/instagram-better-controls/
 
 ## Permission justifications
 
-**storage**
-Remembers that the user accepted the first-time keep disclosure so the confirmation is not shown on every click.
+**downloads**
+Starts a local file save in the browser download folder when the user clicks Keep on a video. No extra in-page permission prompt. No files are uploaded.
 
-**downloads** (optional; requested when the user keeps a video)
-Starts Chrome’s Save As dialog for the video file the user asked to keep.
-
-**Host: https://*.cdninstagram.com/*** (optional; requested when the user keeps a video)
+**Host: https://*.cdninstagram.com/***
 Fetches the video file from Instagram’s CDN after a user-initiated Keep. No other hosts.
 
-**Host: https://*.fbcdn.net/*** (optional; requested when the user keeps a video)
+**Host: https://*.fbcdn.net/***
 Same as above for Facebook CDN URLs used by Instagram video playback.
 
 **Host access to instagram.com** (content script)

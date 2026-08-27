@@ -16,7 +16,7 @@ Keeping a video is optional. The extension does not send files, cookies, or acco
 ## What it does
 
 - **Seek bar** on Reels, feed/post videos, and Stories.
-- **Keep** on videos: after an on-page confirmation, Chrome asks for the `downloads` permission and a Save As location. Only `cdninstagram.com` / `fbcdn.net` HTTPS URLs are fetched.
+- **Keep** on videos: click Keep and the file is saved to your browser’s download folder. No extra permission prompt. Only `cdninstagram.com` / `fbcdn.net` HTTPS URLs are fetched.
 
 ## Store submission
 
