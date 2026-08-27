@@ -2,6 +2,8 @@
 
 Chrome MV3 extension. Adds a seek bar to Reels, posts, and Stories on Instagram.
 
+<img width="440" height="280" alt="promo-small-440x280" src="https://github.com/user-attachments/assets/adace537-7889-4221-aac8-501007cb75bb" />
+
 Instagram Better Controls is an independent product. It is **not affiliated with, endorsed by, or produced by Meta or Instagram**.
 
 Keeping a video is optional. The extension does not send files, cookies, or account data to our servers. Chrome Web Store still treats local-save features as high-risk; reviewers may reject the item under the copyright / unauthorized download policy.
@@ -17,6 +19,10 @@ Keeping a video is optional. The extension does not send files, cookies, or acco
 
 - **Seek bar** on Reels, feed/post videos, and Stories.
 - **Keep** on videos: click Keep and the file is saved to your browser’s download folder. No extra permission prompt. Only `cdninstagram.com` / `fbcdn.net` HTTPS URLs are fetched.
+- Fullscreen videos
+- Enable Rightclick
+
+<img width="1280" height="800" alt="screenshot 1" src="https://github.com/user-attachments/assets/e4c65987-18b8-48a8-9b2b-ce0bb7081426" />
 
 ## Store submission
 
