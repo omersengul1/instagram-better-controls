@@ -1427,19 +1427,23 @@
     };
 
     video.addEventListener('loadeddata', () => {
-      video.classList.add('ig-nvc-video-ready');
-      doSeek();
+      if (previewUi && previewUi.loadedMedia === previewUi.activeMedia) {
+        doSeek();
+      }
     });
 
     video.addEventListener('canplay', () => {
-      video.classList.add('ig-nvc-video-ready');
-      doSeek();
+      if (previewUi && previewUi.loadedMedia === previewUi.activeMedia) {
+        doSeek();
+      }
     });
 
     video.addEventListener('seeked', () => {
       isSeeking = false;
       if (seekFailsafe) clearTimeout(seekFailsafe);
-      video.classList.add('ig-nvc-video-ready');
+      if (previewUi && previewUi.loadedMedia === previewUi.activeMedia && pendingTime >= 0) {
+        video.classList.add('ig-nvc-video-ready');
+      }
       if (pendingTime >= 0 && Math.abs(video.currentTime - pendingTime) >= 0.02) {
         doSeek();
       }
@@ -1457,17 +1461,62 @@
       video,
       timeLabel,
       activeMedia: null,
-      preload(media) {
-        if (!(media instanceof HTMLVideoElement)) return;
-        if (this.activeMedia === media && video.src) return;
-        this.activeMedia = media;
-        const url = resolveVideoUrl(media);
-        if (url && video.src !== url) {
-          video.classList.remove('ig-nvc-video-ready');
-          video.src = url;
-          video.load();
+      loadedMedia: null,
+      loadedUrl: '',
+
+      resetForMedia(nextMedia) {
+        this.activeMedia = nextMedia;
+        pendingTime = -1;
+        isSeeking = false;
+        if (seekFailsafe) {
+          clearTimeout(seekFailsafe);
+          seekFailsafe = 0;
+        }
+        video.classList.remove('ig-nvc-video-ready');
+        if (canvasCtx) {
+          canvasCtx.clearRect(0, 0, 106, 160);
+          if (nextMedia instanceof HTMLVideoElement && nextMedia.readyState >= 2) {
+            try {
+              canvasCtx.drawImage(nextMedia, 0, 0, 106, 160);
+            } catch (_) {}
+          }
+        }
+        if (this.loadedMedia !== nextMedia) {
+          this.loadedMedia = null;
+          this.loadedUrl = '';
+          if (video.src) {
+            video.removeAttribute('src');
+            video.load();
+          }
         }
       },
+
+      preload(media) {
+        if (!(media instanceof HTMLVideoElement)) return;
+        if (this.activeMedia !== media) {
+          this.resetForMedia(media);
+        }
+        if (this.loadedMedia === media && video.src) return;
+
+        const url = resolveVideoUrl(media);
+        if (url) {
+          this.loadedMedia = media;
+          this.loadedUrl = url;
+          if (video.src !== url) {
+            video.classList.remove('ig-nvc-video-ready');
+            video.src = url;
+            video.load();
+          }
+        } else {
+          this.loadedMedia = null;
+          this.loadedUrl = '';
+          if (video.src) {
+            video.removeAttribute('src');
+            video.load();
+          }
+        }
+      },
+
       show(clientX, trackRect, media, pct, isStory = false) {
         if (cleanupTimer) {
           clearTimeout(cleanupTimer);
@@ -1516,18 +1565,25 @@
         this.card.style.display = 'flex';
 
         if (media instanceof HTMLVideoElement) {
-          if (video.readyState < 2 && media.readyState >= 2 && canvasCtx) {
+          if (this.activeMedia !== media) {
+            this.resetForMedia(media);
+          }
+
+          if (!video.classList.contains('ig-nvc-video-ready') && media.readyState >= 2 && canvasCtx) {
             try {
               canvasCtx.drawImage(media, 0, 0, 106, 160);
             } catch (_) {}
           }
-          if (this.activeMedia !== media || !video.src) {
+
+          if (this.loadedMedia !== media || !video.src) {
             this.preload(media);
           }
+
           pendingTime = targetTime;
           doSeek();
         }
       },
+
       hide() {
         pendingTime = -1;
         isSeeking = false;
@@ -1539,13 +1595,16 @@
           cleanupTimer = 0;
           if (!container.classList.contains('ig-nvc-preview-visible')) {
             this.activeMedia = null;
+            this.loadedMedia = null;
+            this.loadedUrl = '';
             video.classList.remove('ig-nvc-video-ready');
+            if (canvasCtx) canvasCtx.clearRect(0, 0, 106, 160);
             if (video.src) {
               video.removeAttribute('src');
               video.load();
             }
           }
-        }, 6000);
+        }, 4000);
       },
     };
     return previewUi;
@@ -1762,7 +1821,10 @@
       fsBtn,
       cleanup: () => {
         if (raf) cancelAnimationFrame(raf);
-        if (previewUi && previewUi.activeMedia === video) previewUi.hide();
+        if (previewUi && previewUi.activeMedia === video) {
+          previewUi.hide();
+          previewUi.resetForMedia(null);
+        }
         video.removeEventListener('play', ensureTick);
         video.removeEventListener('playing', ensureTick);
         video.removeEventListener('seeked', updateFill);
