@@ -19,6 +19,7 @@ $items = @(
   'background.js',
   'content.js',
   'patch.js',
+  'adobe-transcoder.js',
   'popup.html',
   'popup.css',
   'popup.js',

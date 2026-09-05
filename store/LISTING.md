@@ -62,6 +62,9 @@ https://omersengul1.github.io/instagram-better-controls/
 
 ## Permission justifications
 
+**storage**
+Used strictly to store the user's local extension preferences, specifically the toggle state for Adobe Premiere / AE compatibility mode. No personal, tracking, or browsing data is stored or transmitted.
+
 **downloads**
 Starts a local file save in the browser download folder when the user clicks Keep on a video. No extra in-page permission prompt. No files are uploaded.
 

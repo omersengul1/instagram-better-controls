@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Instagram Better Controls",
   "short_name": "Better Ctrl",
-  "version": "1.6.4",
+  "version": "1.8.0",
   "minimum_chrome_version": "116",
   "description": "Adds a seek bar to Reels, posts, and Stories on Instagram.",
   "homepage_url": "https://omersengul1.github.io/instagram-better-controls/",
@@ -22,7 +22,7 @@
       "128": "icons/icon128.png"
     }
   },
-  "permissions": ["downloads"],
+  "permissions": ["downloads", "storage"],
   "host_permissions": [
     "https://cdninstagram.com/*",
     "https://*.cdninstagram.com/*",
@@ -47,7 +47,7 @@
         "https://www.instagram.com/*",
         "https://instagram.com/*"
       ],
-      "js": ["content.js"],
+      "js": ["adobe-transcoder.js", "content.js"],
       "run_at": "document_idle",
       "world": "ISOLATED"
     }

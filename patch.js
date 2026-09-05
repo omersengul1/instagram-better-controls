@@ -439,10 +439,13 @@
     (event) => {
       const detail = event.detail;
       if (!detail) return;
+      const directVideo =
+        (detail.btnId && document.querySelector(`video[data-ig-nvc-id="${detail.btnId}"]`)) || null;
       const btn =
-        (detail.btnId && document.querySelector(`.ig-nvc-k[data-ig-nvc-for="${detail.btnId}"]`)) ||
-        document.querySelector('.ig-nvc-k');
-      const video = videoForDownloadBtn(btn);
+        !directVideo &&
+        ((detail.btnId && document.querySelector(`.ig-nvc-k[data-ig-nvc-for="${detail.btnId}"]`)) ||
+          document.querySelector('.ig-nvc-k'));
+      const video = directVideo || (btn && videoForDownloadBtn(btn));
       if (!video) return;
       const url = findVideoUrl(video);
       if (!url || !isVideoHttpUrl(url) || !isAllowedCdnHost(url)) return;

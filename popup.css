@@ -62,6 +62,88 @@ button:hover {
   margin-bottom: 0;
 }
 
+.settings-section {
+  margin: 12px 0 14px;
+  padding: 10px 12px;
+  background: rgba(228, 90, 140, 0.08);
+  border: 1px solid rgba(228, 90, 140, 0.25);
+  border-radius: 10px;
+}
+
+.setting-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.setting-switch-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.setting-switch-wrapper input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #d1b8c2;
+  transition: 0.2s ease;
+  border-radius: 20px;
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.2s ease;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.setting-switch-wrapper input:checked + .switch-slider {
+  background-color: #e45a8c;
+}
+
+.setting-switch-wrapper input:checked + .switch-slider:before {
+  transform: translateX(16px);
+}
+
+.setting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.setting-title {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: #3d1a2a;
+}
+
+.setting-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #7b4c62;
+}
+
 @media (prefers-color-scheme: dark) {
   body {
     color: #f8e4ec;
@@ -74,12 +156,20 @@ button:hover {
     color: #d4a3b6;
   }
 
-  button {
-    background: #e45a8c;
-    color: #fff;
+  .settings-section {
+    background: rgba(228, 90, 140, 0.12);
+    border-color: rgba(228, 90, 140, 0.35);
   }
 
-  button:hover {
-    background: #f0709c;
+  .switch-slider {
+    background-color: #4a343e;
+  }
+
+  .setting-title {
+    color: #f8e4ec;
+  }
+
+  .setting-desc {
+    color: #d4a3b6;
   }
 }

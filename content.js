@@ -264,21 +264,102 @@
         visibility: visible !important;
         pointer-events: none !important;
       }
-      html.ig-nvc-fs .ig-nvc-bar,
-      html.ig-nvc-fs .ig-nvc-bar *,
+      html.ig-nvc-fs .ig-nvc-bar:not(.ig-nvc-bar-fs-active) {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+      html.ig-nvc-fs .ig-nvc-bar.ig-nvc-bar-fs-active,
+      html.ig-nvc-fs .ig-nvc-bar.ig-nvc-bar-fs-active *,
       html.ig-nvc-fs .ig-nvc-fs-play,
       html.ig-nvc-fs .ig-nvc-fs-play *,
       html.ig-nvc-fs .ig-nvc-fs-exit,
       html.ig-nvc-fs .ig-nvc-fs-exit *,
-      html.ig-nvc-fs .ig-nvc-fs-hit {
+      html.ig-nvc-fs .ig-nvc-fs-hit,
+      html.ig-nvc-fs .ig-nvc-preview,
+      html.ig-nvc-fs .ig-nvc-preview * {
+        display: block !important;
         visibility: visible !important;
         pointer-events: auto !important;
+      }
+      html.ig-nvc-fs .ig-nvc-preview {
+        display: flex !important;
+        pointer-events: none !important;
       }
       html.ig-nvc-fs .ig-nvc-k,
       html.ig-nvc-fs .ig-nvc-fs-btn {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
+      }
+      .ig-nvc-preview {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 2147483647;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+        transform: translate(-50%, -100%);
+        transition: opacity 0.1s ease;
+        opacity: 0;
+      }
+      .ig-nvc-preview.ig-nvc-preview-visible {
+        display: flex;
+        opacity: 1;
+      }
+      .ig-nvc-preview-card {
+        width: 106px;
+        height: 160px;
+        background: #000;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 8px 26px rgba(0, 0, 0, 0.75);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      .ig-nvc-preview-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+      }
+      .ig-nvc-preview-video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: transparent;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.12s ease;
+      }
+      .ig-nvc-preview-video.ig-nvc-video-ready {
+        opacity: 1;
+      }
+      .ig-nvc-preview-time {
+        margin-top: 6px;
+        font: 700 13px/1 system-ui, -apple-system, sans-serif;
+        color: #ffffff;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.95);
+        letter-spacing: 0.5px;
+        background: rgba(0, 0, 0, 0.65);
+        padding: 4px 8px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      }
+      .ig-nvc-preview.ig-nvc-story-preview .ig-nvc-preview-card {
+        display: none !important;
+      }
+      .ig-nvc-preview.ig-nvc-story-preview .ig-nvc-preview-time {
+        margin-top: 0;
       }
       html.ig-nvc-fs .ig-nvc-fs-hit {
         display: block !important;
@@ -385,29 +466,6 @@
     return best;
   };
 
-  const isPrimaryVisibleVideo = (video) => {
-    if (isReelsPath()) {
-      let best = null;
-      let bestScore = -1;
-      document.querySelectorAll('video').forEach((el) => {
-        if (!(el instanceof HTMLVideoElement) || !el.isConnected) return;
-        const box = visibleMediaBox(el);
-        if (!box) return;
-        let score = box.width * box.height;
-        if (!el.paused && el.readyState >= 2) score += 1e9;
-        const dx = box.left + box.width / 2 - window.innerWidth / 2;
-        const dy = box.top + box.height / 2 - window.innerHeight / 2;
-        score -= Math.abs(dx) + Math.abs(dy);
-        if (score > bestScore) {
-          bestScore = score;
-          best = el;
-        }
-      });
-      return best === video;
-    }
-    return primaryVideoInRoot(video) === video;
-  };
-
   const isInScope = (video) => {
     if (!(video instanceof HTMLVideoElement)) return false;
     const path = location.pathname || '';
@@ -420,6 +478,109 @@
     } catch (_) {}
     const rect = video.getBoundingClientRect();
     return rect.width >= 180 && rect.height >= Math.min(window.innerHeight * 0.4, 320);
+  };
+
+  const getActiveDialog = () => {
+    const dialogs = document.querySelectorAll('[role="dialog"], [aria-modal="true"]');
+    for (let i = 0; i < dialogs.length; i += 1) {
+      const d = dialogs[i];
+      if (!(d instanceof HTMLElement) || !d.isConnected) continue;
+      const style = window.getComputedStyle(d);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+      const rect = d.getBoundingClientRect();
+      if (rect.width >= 200 && rect.height >= 200 && rect.bottom > 0 && rect.top < window.innerHeight) {
+        return d;
+      }
+    }
+    return null;
+  };
+
+  const isElementOccluded = (el, box) => {
+    if (!el || !box) return true;
+    const cx = Math.round(box.left + box.width / 2);
+    const cy = Math.round(box.top + box.height / 2);
+    if (cx < 0 || cx > window.innerWidth || cy < 0 || cy > window.innerHeight) return true;
+    const hit = document.elementFromPoint(cx, cy);
+    if (!hit) return false;
+    if (hit.closest && hit.closest(OUR_UI)) return false;
+    if (el.contains(hit) || hit.contains(el)) return false;
+    const elRoot = playerRoot(el);
+    if (elRoot && elRoot.contains(hit)) return false;
+    return true;
+  };
+
+  const findBestVisibleVideo = () => {
+    if (document.documentElement.classList.contains('ig-nvc-fs')) {
+      if (fsState.media instanceof HTMLVideoElement && fsState.media.isConnected) {
+        return fsState.media;
+      }
+      return null;
+    }
+
+    if (isReelsPath()) {
+      const activeDialog = getActiveDialog();
+      if (activeDialog) {
+        const dialogVideo = activeDialog.querySelector('video');
+        if (dialogVideo && isInScope(dialogVideo)) return dialogVideo;
+      }
+      let best = null;
+      let bestScore = -Infinity;
+      document.querySelectorAll('video').forEach((el) => {
+        if (!(el instanceof HTMLVideoElement) || !el.isConnected) return;
+        const box = visibleMediaBox(el);
+        if (!box) return;
+        let score = box.width * box.height;
+        if (!el.paused && el.readyState >= 2) score += 1e9;
+        const dx = box.left + box.width / 2 - window.innerWidth / 2;
+        const dy = box.top + box.height / 2 - window.innerHeight / 2;
+        score -= (Math.abs(dx) + Math.abs(dy)) * 10;
+        if (score > bestScore) {
+          bestScore = score;
+          best = el;
+        }
+      });
+      return best;
+    }
+
+    const activeDialog = getActiveDialog();
+    const dialogVideo = activeDialog ? activeDialog.querySelector('video') : null;
+
+    let best = null;
+    let bestScore = -Infinity;
+
+    document.querySelectorAll('video').forEach((el) => {
+      if (!(el instanceof HTMLVideoElement) || !el.isConnected) return;
+      if (!isInScope(el)) return;
+
+      if (dialogVideo && (!activeDialog || !activeDialog.contains(el))) return;
+
+      if (primaryVideoInRoot(el) !== el) return;
+
+      const box = visibleMediaBox(el);
+      if (!box) return;
+
+      if (isElementOccluded(el, box)) return;
+
+      let score = box.width * box.height;
+      if (!el.paused && el.readyState >= 2) score += 1e9;
+
+      if (activeDialog && activeDialog.contains(el)) score += 1e8;
+
+      const dx = box.left + box.width / 2 - window.innerWidth / 2;
+      const dy = box.top + box.height / 2 - window.innerHeight / 2;
+      score -= (Math.abs(dx) + Math.abs(dy)) * 10;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = el;
+      }
+    });
+
+    return best;
+  };
+
+  const isPrimaryVisibleVideo = (video) => {
+    return findBestVisibleVideo() === video;
   };
 
   const isCenteredStory = (el) => {
@@ -687,14 +848,32 @@
     syncPlayPauseIcon();
   };
 
+  const markActiveFsBar = (media) => {
+    document.querySelectorAll('.ig-nvc-bar-fs-active').forEach((b) => b.classList.remove('ig-nvc-bar-fs-active'));
+    if (!media) return;
+    const entry = scrubbers.get(media);
+    if (entry && entry.bar) {
+      entry.bar.classList.add('ig-nvc-bar-fs-active');
+    }
+  };
+
   const relayoutFs = () => {
     if (isStoriesPath()) {
       if (storyUi) storyUi.layout(true);
     } else {
+      markActiveFsBar(fsState.media);
       for (const [video, entry] of scrubbers) {
         if (!video.isConnected) continue;
-        const show = video === fsState.media || isPrimaryVisibleVideo(video);
+        const show = video === fsState.media;
         layoutPlayerBar(video, entry.bar, show);
+        if (entry.dlBtn) {
+          entry.dlBtn.style.display = 'none';
+          entry.dlBtn.style.visibility = 'hidden';
+        }
+        if (entry.fsBtn) {
+          entry.fsBtn.style.display = 'none';
+          entry.fsBtn.style.visibility = 'hidden';
+        }
       }
     }
     layoutFsControls();
@@ -735,6 +914,7 @@
     delete html.dataset.igNvcFs;
     delete html.dataset.igNvcUserPaused;
     if (fsState.media) fsState.media.classList.remove('ig-nvc-fs-target');
+    document.querySelectorAll('.ig-nvc-bar-fs-active').forEach((b) => b.classList.remove('ig-nvc-bar-fs-active'));
     clearFsPass();
     fsState.media = null;
     if (fsPlayBtn) fsPlayBtn.style.display = 'none';
@@ -752,6 +932,7 @@
     setUserPaused(false);
     markFsPass(media);
     ensureFsControls();
+    markActiveFsBar(media);
     layoutFsControls();
   };
 
@@ -892,19 +1073,23 @@
     if (!btn) return;
     if (document.documentElement.classList.contains('ig-nvc-fs')) {
       btn.style.display = 'none';
+      btn.style.visibility = 'hidden';
       return;
     }
     if (!visible || !el || !el.isConnected) {
       btn.style.display = 'none';
+      btn.style.visibility = 'hidden';
       return;
     }
     if (isStoriesPath()) {
       const rect = el.getBoundingClientRect();
       if (rect.width < 2 || rect.height < 2) {
         btn.style.display = 'none';
+        btn.style.visibility = 'hidden';
         return;
       }
       btn.style.display = 'flex';
+      btn.style.visibility = 'visible';
       btn.style.left = `${Math.round(Math.min(rect.right + 12, window.innerWidth - FS_BTN_SIZE - 8))}px`;
       btn.style.top = `${Math.round(rect.top + 36)}px`;
       return;
@@ -912,6 +1097,7 @@
     const box = visibleMediaBox(el);
     if (!box) {
       btn.style.display = 'none';
+      btn.style.visibility = 'hidden';
       return;
     }
     if (isReelsPath()) {
@@ -1036,10 +1222,33 @@
     return blob;
   };
 
+  const isAdobeCompatEnabled = async () => {
+    try {
+      if (!chrome.storage || !chrome.storage.local) return false;
+      const res = await new Promise((resolve) => {
+        chrome.storage.local.get({ adobeCompat: false }, resolve);
+      });
+      return !!(res && res.adobeCompat);
+    } catch (_) {
+      return false;
+    }
+  };
+
   const saveBlob = async (url, name) => {
     const blob = await fetchBlob(url);
-    const href = URL.createObjectURL(blob);
-    clickAnchor(href, name);
+    const isAdobe = await isAdobeCompatEnabled();
+    let finalBlob = blob;
+    let finalName = name;
+    if (isAdobe && window.AdobeTranscoder) {
+      try {
+        finalBlob = await window.AdobeTranscoder.normalizeForAdobe(blob);
+        finalName = name.replace(/\.mp4$/i, '') + '-adobe.mp4';
+      } catch (err) {
+        console.warn('[IBC] Adobe normalization error in saveBlob:', err);
+      }
+    }
+    const href = URL.createObjectURL(finalBlob);
+    clickAnchor(href, finalName);
     setTimeout(() => URL.revokeObjectURL(href), 60000);
   };
 
@@ -1053,6 +1262,23 @@
     saving = true;
     showNotice('Saving…');
     try {
+      const isAdobe = await isAdobeCompatEnabled();
+      if (isAdobe && window.AdobeTranscoder) {
+        showNotice('Optimizing for Adobe…');
+        try {
+          const originalBlob = await fetchBlob(url);
+          const adobeBlob = await window.AdobeTranscoder.normalizeForAdobe(originalBlob);
+          const adobeFilename = name.replace(/\.mp4$/i, '') + '-adobe.mp4';
+          const href = URL.createObjectURL(adobeBlob);
+          clickAnchor(href, adobeFilename);
+          setTimeout(() => URL.revokeObjectURL(href), 60000);
+          showNotice('Saved (Adobe Ready)');
+          return;
+        } catch (transcodeErr) {
+          console.warn('[IBC] Adobe transcode failed, falling back to direct save:', transcodeErr);
+        }
+      }
+
       const viaExt = await sendRuntime({
         type: 'seekstrip-download',
         url,
@@ -1101,6 +1327,217 @@
     return detail;
   };
 
+  const formatTime = (secs) => {
+    if (!isFinite(secs) || secs < 0) return '0:00';
+    const s = Math.floor(secs);
+    const m = Math.floor(s / 60);
+    const remSec = s % 60;
+    const remSecStr = remSec < 10 ? `0${remSec}` : `${remSec}`;
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      const remMin = m % 60;
+      const remMinStr = remMin < 10 ? `0${remMin}` : `${remMin}`;
+      return `${h}:${remMinStr}:${remSecStr}`;
+    }
+    return `${m}:${remSecStr}`;
+  };
+
+  const resolveVideoUrl = (video) => {
+    if (!(video instanceof HTMLVideoElement)) return '';
+    if (video.dataset.igNvcDl && isAllowedDownloadUrl(video.dataset.igNvcDl)) {
+      return video.dataset.igNvcDl;
+    }
+    const direct = video.currentSrc || video.src || '';
+    if (direct && !direct.startsWith('blob:') && isAllowedDownloadUrl(direct)) {
+      return direct;
+    }
+    const detail = {
+      url: '',
+      filename: '',
+      btnId: video.dataset.igNvcId || '',
+    };
+    document.documentElement.dispatchEvent(
+      new CustomEvent('ig-nvc-ask-url', { bubbles: true, detail }),
+    );
+    if (detail.url && isAllowedDownloadUrl(detail.url)) {
+      video.dataset.igNvcDl = detail.url;
+      return detail.url;
+    }
+    return '';
+  };
+
+  let previewUi = null;
+  const ensurePreviewUi = () => {
+    if (previewUi) return previewUi;
+    const container = document.createElement('div');
+    container.className = 'ig-nvc-preview';
+    const card = document.createElement('div');
+    card.className = 'ig-nvc-preview-card';
+    const canvas = document.createElement('canvas');
+    canvas.className = 'ig-nvc-preview-canvas';
+    canvas.width = 106;
+    canvas.height = 160;
+    const canvasCtx = canvas.getContext('2d');
+    const video = document.createElement('video');
+    video.className = 'ig-nvc-preview-video';
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.tabIndex = -1;
+    card.appendChild(canvas);
+    card.appendChild(video);
+    const timeLabel = document.createElement('div');
+    timeLabel.className = 'ig-nvc-preview-time';
+    timeLabel.textContent = '0:00';
+    container.appendChild(card);
+    container.appendChild(timeLabel);
+    (document.body || document.documentElement).appendChild(container);
+
+    let isSeeking = false;
+    let pendingTime = -1;
+    let cleanupTimer = 0;
+    let seekFailsafe = 0;
+
+    const doSeek = () => {
+      if (pendingTime < 0) return;
+      if (video.readyState < 2) return;
+      if (isSeeking) return;
+      if (Math.abs(video.currentTime - pendingTime) < 0.02) return;
+      isSeeking = true;
+      if (seekFailsafe) clearTimeout(seekFailsafe);
+      seekFailsafe = setTimeout(() => {
+        isSeeking = false;
+        doSeek();
+      }, 70);
+      try {
+        video.currentTime = pendingTime;
+      } catch (_) {
+        isSeeking = false;
+      }
+    };
+
+    video.addEventListener('loadeddata', () => {
+      video.classList.add('ig-nvc-video-ready');
+      doSeek();
+    });
+
+    video.addEventListener('canplay', () => {
+      video.classList.add('ig-nvc-video-ready');
+      doSeek();
+    });
+
+    video.addEventListener('seeked', () => {
+      isSeeking = false;
+      if (seekFailsafe) clearTimeout(seekFailsafe);
+      video.classList.add('ig-nvc-video-ready');
+      if (pendingTime >= 0 && Math.abs(video.currentTime - pendingTime) >= 0.02) {
+        doSeek();
+      }
+    });
+
+    video.addEventListener('error', () => {
+      isSeeking = false;
+      if (seekFailsafe) clearTimeout(seekFailsafe);
+    });
+
+    previewUi = {
+      container,
+      card,
+      canvas,
+      video,
+      timeLabel,
+      activeMedia: null,
+      preload(media) {
+        if (!(media instanceof HTMLVideoElement)) return;
+        if (this.activeMedia === media && video.src) return;
+        this.activeMedia = media;
+        const url = resolveVideoUrl(media);
+        if (url && video.src !== url) {
+          video.classList.remove('ig-nvc-video-ready');
+          video.src = url;
+          video.load();
+        }
+      },
+      show(clientX, trackRect, media, pct, isStory = false) {
+        if (cleanupTimer) {
+          clearTimeout(cleanupTimer);
+          cleanupTimer = 0;
+        }
+        if (!media || !isFinite(media.duration) || media.duration <= 0) {
+          this.hide();
+          return;
+        }
+        const targetTime = Math.max(0, Math.min(media.duration, pct * media.duration));
+        this.timeLabel.textContent = formatTime(targetTime);
+
+        const storyMode = !!isStory || isStoriesPath();
+        this.container.classList.toggle('ig-nvc-story-preview', storyMode);
+
+        const cardW = storyMode ? 60 : 106;
+        const halfW = cardW / 2;
+        const clampedX = Math.round(Math.max(halfW + 8, Math.min(window.innerWidth - halfW - 8, clientX)));
+
+        let topY;
+        if (storyMode) {
+          if (trackRect.top < 40) {
+            topY = Math.round(trackRect.bottom + 8);
+            this.container.style.transform = 'translate(-50%, 0)';
+          } else {
+            topY = Math.round(trackRect.top - 8);
+            this.container.style.transform = 'translate(-50%, -100%)';
+          }
+        } else {
+          topY = Math.round(trackRect.top - 8);
+          this.container.style.transform = 'translate(-50%, -100%)';
+        }
+
+        this.container.style.left = `${clampedX}px`;
+        this.container.style.top = `${topY}px`;
+        this.container.classList.add('ig-nvc-preview-visible');
+
+        if (storyMode) {
+          this.card.style.display = 'none';
+          return;
+        }
+
+        this.card.style.display = 'flex';
+
+        if (media instanceof HTMLVideoElement) {
+          if (video.readyState < 2 && media.readyState >= 2 && canvasCtx) {
+            try {
+              canvasCtx.drawImage(media, 0, 0, 106, 160);
+            } catch (_) {}
+          }
+          if (this.activeMedia !== media || !video.src) {
+            this.preload(media);
+          }
+          pendingTime = targetTime;
+          doSeek();
+        }
+      },
+      hide() {
+        pendingTime = -1;
+        isSeeking = false;
+        if (seekFailsafe) clearTimeout(seekFailsafe);
+        this.container.classList.remove('ig-nvc-preview-visible', 'ig-nvc-story-preview');
+        this.container.style.transform = 'translate(-50%, -100%)';
+        if (cleanupTimer) clearTimeout(cleanupTimer);
+        cleanupTimer = setTimeout(() => {
+          cleanupTimer = 0;
+          if (!container.classList.contains('ig-nvc-preview-visible')) {
+            this.activeMedia = null;
+            video.classList.remove('ig-nvc-video-ready');
+            if (video.src) {
+              video.removeAttribute('src');
+              video.load();
+            }
+          }
+        }, 6000);
+      },
+    };
+    return previewUi;
+  };
+
   document.addEventListener(
     'ig-nvc-keep',
     (event) => {
@@ -1136,6 +1573,7 @@
     const box = visible ? visibleMediaBox(el) : null;
     if (!box) {
       btn.style.display = 'none';
+      btn.style.visibility = 'hidden';
       return;
     }
     const topOff = isStoriesPath() ? 64 : isReelsPath() ? 16 : 46;
@@ -1145,9 +1583,11 @@
     const cy = top + 18;
     if (cx < box.left || cx > box.right || cy < box.top || cy > box.bottom - 24) {
       btn.style.display = 'none';
+      btn.style.visibility = 'hidden';
       return;
     }
     btn.style.display = 'flex';
+    btn.style.visibility = 'visible';
     btn.style.left = `${Math.round(left)}px`;
     btn.style.top = `${Math.round(top)}px`;
   };
@@ -1157,6 +1597,7 @@
     const box = visible ? visibleMediaBox(video) : null;
     if (!box) {
       bar.style.display = 'none';
+      bar.style.visibility = 'hidden';
       return;
     }
     const reels = isReelsPath();
@@ -1237,6 +1678,13 @@
       setProgress(pct);
     };
 
+    const updatePreview = (event) => {
+      const rect = track.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+      ensurePreviewUi().show(event.clientX, rect, video, pct);
+    };
+
     const onDown = (event) => {
       if (event.button !== 0) return;
       event.preventDefault();
@@ -1247,12 +1695,14 @@
         bar.setPointerCapture(event.pointerId);
       } catch (_) {}
       seekFromEvent(event);
+      updatePreview(event);
     };
     const onMove = (event) => {
       if (!dragging) return;
       event.preventDefault();
       event.stopPropagation();
       seekFromEvent(event);
+      updatePreview(event);
     };
     const onUp = (event) => {
       if (!dragging) return;
@@ -1265,8 +1715,16 @@
       } catch (_) {}
       updateFill();
       if (!video.paused && !video.ended) ensureTick();
+      if (previewUi) previewUi.hide();
     };
 
+    bar.addEventListener('pointerenter', updatePreview);
+    bar.addEventListener('pointermove', (event) => {
+      if (!dragging) updatePreview(event);
+    });
+    bar.addEventListener('pointerleave', () => {
+      if (!dragging && previewUi) previewUi.hide();
+    });
     bar.addEventListener('pointerdown', onDown);
     bar.addEventListener('pointermove', onMove);
     bar.addEventListener('pointerup', onUp);
@@ -1291,6 +1749,7 @@
       fsBtn,
       cleanup: () => {
         if (raf) cancelAnimationFrame(raf);
+        if (previewUi && previewUi.activeMedia === video) previewUi.hide();
         video.removeEventListener('play', ensureTick);
         video.removeEventListener('playing', ensureTick);
         video.removeEventListener('seeked', updateFill);
@@ -1306,6 +1765,7 @@
 
   const teardownStoryBar = () => {
     if (!storyUi) return;
+    if (previewUi) previewUi.hide();
     storyUi.stop();
     window.removeEventListener('resize', storyUi.layout);
     document.removeEventListener('scroll', storyUi.layout, true);
@@ -1446,6 +1906,22 @@
       setProgress(pct);
     };
 
+    const updatePreview = (event) => {
+      if (!(video instanceof HTMLVideoElement) || !isFinite(video.duration) || video.duration <= 0) return;
+      const rect = track.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+      ensurePreviewUi().show(event.clientX, rect, video, pct, true);
+    };
+
+    bar.addEventListener('pointerenter', updatePreview);
+    bar.addEventListener('pointermove', (event) => {
+      if (!dragging) updatePreview(event);
+    });
+    bar.addEventListener('pointerleave', () => {
+      if (!dragging && previewUi) previewUi.hide();
+    });
+
     bar.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
       event.preventDefault();
@@ -1456,12 +1932,14 @@
         bar.setPointerCapture(event.pointerId);
       } catch (_) {}
       seekFromEvent(event);
+      updatePreview(event);
     });
     bar.addEventListener('pointermove', (event) => {
       if (!dragging) return;
       event.preventDefault();
       event.stopPropagation();
       seekFromEvent(event);
+      updatePreview(event);
     });
     const onUp = (event) => {
       if (!dragging) return;
@@ -1472,6 +1950,7 @@
       try {
         bar.releasePointerCapture(event.pointerId);
       } catch (_) {}
+      if (previewUi) previewUi.hide();
     };
     bar.addEventListener('pointerup', onUp);
     bar.addEventListener('pointercancel', onUp);
@@ -1552,13 +2031,17 @@
     document.documentElement.classList.remove('ig-nvc-stories');
     teardownStoryBar();
     document.querySelectorAll('video').forEach(enable);
+    const primaryVideo = findBestVisibleVideo();
+    if (primaryVideo) {
+      ensurePreviewUi().preload(primaryVideo);
+    }
     for (const [video, entry] of scrubbers) {
       if (!video.isConnected) {
         entry.cleanup();
         scrubbers.delete(video);
         continue;
       }
-      const show = isPrimaryVisibleVideo(video);
+      const show = video === primaryVideo;
       layoutPlayerBar(video, entry.bar, show);
       layoutDownloadButton(video, entry.dlBtn, show);
       layoutFullscreenButton(video, entry.fsBtn, show);
