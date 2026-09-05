@@ -1477,18 +1477,10 @@
         const halfW = cardW / 2;
         const clampedX = Math.round(Math.max(halfW + 8, Math.min(window.innerWidth - halfW - 8, clientX)));
 
-        let topY;
-        if (storyMode) {
-          if (trackRect.top < 40) {
-            topY = Math.round(trackRect.bottom + 8);
-            this.container.style.transform = 'translate(-50%, 0)';
-          } else {
-            topY = Math.round(trackRect.top - 8);
-            this.container.style.transform = 'translate(-50%, -100%)';
-          }
-        } else {
-          topY = Math.round(trackRect.top - 8);
-          this.container.style.transform = 'translate(-50%, -100%)';
+        let topY = Math.round(trackRect.top - 8);
+        this.container.style.transform = 'translate(-50%, -100%)';
+        if (storyMode && topY < 28) {
+          topY = 28;
         }
 
         this.container.style.left = `${clampedX}px`;
@@ -1847,13 +1839,16 @@
       const box = `${rect.left | 0},${rect.top | 0},${rect.width | 0},${isVideo ? 1 : 0},${document.documentElement.classList.contains('ig-nvc-fs') ? 1 : 0}`;
       if (!force && box === lastBox) return;
       lastBox = box;
-      bar.style.display = 'block';
-      bar.style.left = `${rect.left}px`;
-      bar.style.width = `${rect.width}px`;
-      bar.style.top = `${rect.top}px`;
       if (isVideo) {
+        bar.style.display = 'block';
+        bar.style.visibility = 'visible';
+        bar.style.left = `${rect.left}px`;
+        bar.style.width = `${rect.width}px`;
+        bar.style.top = `${rect.top}px`;
         layoutDownloadButton(el, dlBtn, true);
       } else {
+        bar.style.display = 'none';
+        bar.style.visibility = 'hidden';
         layoutDownloadButton(el, dlBtn, false);
       }
       layoutFullscreenButton(el, fsBtn, true);
