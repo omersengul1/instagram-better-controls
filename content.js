@@ -20,7 +20,7 @@
         top: 0;
         height: 14px;
         width: 0;
-        z-index: 2147483647;
+        z-index: 2147483640;
         cursor: pointer;
         pointer-events: auto;
         touch-action: none;
@@ -296,7 +296,7 @@
         position: fixed;
         left: 0;
         top: 0;
-        z-index: 2147483647;
+        z-index: 2147483647 !important;
         display: none;
         flex-direction: column;
         align-items: center;
@@ -360,6 +360,16 @@
       }
       .ig-nvc-preview.ig-nvc-story-preview .ig-nvc-preview-time {
         margin-top: 0;
+        padding: 2px 6px;
+        font: 700 11px/1.2 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        color: #ffffff;
+        background: rgba(18, 18, 18, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+        pointer-events: none;
       }
       html.ig-nvc-fs .ig-nvc-fs-hit {
         display: block !important;
@@ -1473,14 +1483,25 @@
         const storyMode = !!isStory || isStoriesPath();
         this.container.classList.toggle('ig-nvc-story-preview', storyMode);
 
-        const cardW = storyMode ? 60 : 106;
+        const cardW = storyMode ? 44 : 106;
         const halfW = cardW / 2;
         const clampedX = Math.round(Math.max(halfW + 8, Math.min(window.innerWidth - halfW - 8, clientX)));
 
-        let topY = Math.round(trackRect.top - 8);
-        this.container.style.transform = 'translate(-50%, -100%)';
-        if (storyMode && topY < 28) {
-          topY = 28;
+        let topY;
+        if (storyMode) {
+          if (trackRect.top >= 28) {
+            topY = Math.round(trackRect.top - 8);
+            this.container.style.transform = 'translate(-50%, -100%)';
+          } else if (trackRect.top >= 20) {
+            topY = Math.round(trackRect.top - 3);
+            this.container.style.transform = 'translate(-50%, -100%)';
+          } else {
+            topY = Math.round(trackRect.top + 36);
+            this.container.style.transform = 'translate(-50%, 0)';
+          }
+        } else {
+          topY = Math.round(trackRect.top - 8);
+          this.container.style.transform = 'translate(-50%, -100%)';
         }
 
         this.container.style.left = `${clampedX}px`;
@@ -1866,6 +1887,7 @@
       if (video) dlBtn.dataset.igNvcFor = video.dataset.igNvcId;
       else delete dlBtn.dataset.igNvcFor;
       bar.classList.remove('ig-nvc-hover', 'ig-nvc-drag');
+      if (previewUi) previewUi.hide();
       lastBox = '';
       if (video && isFinite(video.duration) && video.duration > 0) {
         setProgress(video.currentTime / video.duration);
