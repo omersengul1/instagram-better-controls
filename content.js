@@ -1354,13 +1354,23 @@
 
   const resolveVideoUrl = (video) => {
     if (!(video instanceof HTMLVideoElement)) return '';
-    if (video.dataset.igNvcDl && isAllowedDownloadUrl(video.dataset.igNvcDl)) {
-      return video.dataset.igNvcDl;
+    const curSrc = video.currentSrc || video.src || '';
+
+    if (video.dataset.igNvcDl) {
+      if (video.dataset.igNvcForSrc && video.dataset.igNvcForSrc !== curSrc) {
+        delete video.dataset.igNvcDl;
+        delete video.dataset.igNvcForSrc;
+      } else if (isAllowedDownloadUrl(video.dataset.igNvcDl)) {
+        return video.dataset.igNvcDl;
+      }
     }
-    const direct = video.currentSrc || video.src || '';
-    if (direct && !direct.startsWith('blob:') && isAllowedDownloadUrl(direct)) {
-      return direct;
+
+    if (curSrc && !curSrc.startsWith('blob:') && isAllowedDownloadUrl(curSrc)) {
+      video.dataset.igNvcDl = curSrc;
+      video.dataset.igNvcForSrc = curSrc;
+      return curSrc;
     }
+
     const detail = {
       url: '',
       filename: '',
@@ -1371,6 +1381,7 @@
     );
     if (detail.url && isAllowedDownloadUrl(detail.url)) {
       video.dataset.igNvcDl = detail.url;
+      video.dataset.igNvcForSrc = curSrc;
       return detail.url;
     }
     return '';
@@ -1579,8 +1590,10 @@
             this.preload(media);
           }
 
-          pendingTime = targetTime;
-          doSeek();
+          if (this.loadedMedia === media && video.src) {
+            pendingTime = targetTime;
+            doSeek();
+          }
         }
       },
 
@@ -1809,6 +1822,14 @@
     video.addEventListener('play', ensureTick);
     video.addEventListener('playing', ensureTick);
     video.addEventListener('seeked', updateFill);
+    const onLoadStart = () => {
+      delete video.dataset.igNvcDl;
+      delete video.dataset.igNvcForSrc;
+      if (previewUi && previewUi.activeMedia === video) {
+        previewUi.resetForMedia(null);
+      }
+    };
+    video.addEventListener('loadstart', onLoadStart);
     video.addEventListener('loadedmetadata', updateFill);
     video.addEventListener('pause', updateFill);
     video.addEventListener('ended', updateFill);
@@ -1825,6 +1846,7 @@
           previewUi.hide();
           previewUi.resetForMedia(null);
         }
+        video.removeEventListener('loadstart', onLoadStart);
         video.removeEventListener('play', ensureTick);
         video.removeEventListener('playing', ensureTick);
         video.removeEventListener('seeked', updateFill);

@@ -277,14 +277,19 @@
 
   const rememberVideoSrc = (video, value) => {
     if (!(video instanceof HTMLVideoElement)) return;
-    if (!isVideoHttpUrl(value)) return;
-    video.dataset.igNvcDl = unescapeIgUrl(value);
+    delete video.dataset.igNvcDl;
+    delete video.dataset.igNvcForSrc;
+    if (isVideoHttpUrl(value)) {
+      const u = unescapeIgUrl(value);
+      video.dataset.igNvcDl = u;
+      video.dataset.igNvcForSrc = u;
+    }
   };
 
-  // Last-resort lookup of CDN URLs already present on the playing media node.
-  // Does not send requests or read cookies.
-  const extractVideoUrl = (obj, depth, seen) => {
-    if (!obj || depth > 12 || typeof obj !== 'object') return '';
+  // Safe lookup of CDN URLs directly attached to this video's player node.
+  // Never traverses multi-item parent collections (items, edges, posts).
+  const extractVideoUrl = (obj, depth, seen, targetCode) => {
+    if (!obj || depth > 8 || typeof obj !== 'object') return '';
     if (obj instanceof Node) return '';
     if (seen.has(obj)) return '';
     try {
@@ -292,6 +297,12 @@
     } catch (_) {
       return '';
     }
+
+    const objCode = String(obj.code || obj.shortcode || '');
+    if (targetCode && objCode && objCode !== targetCode) {
+      return '';
+    }
+
     if (Array.isArray(obj.video_versions) && obj.video_versions.length) {
       rememberMedia(obj);
       const url = bestVersionUrl(obj.video_versions);
@@ -301,31 +312,19 @@
     if (isVideoHttpUrl(obj.playback_url) && String(obj.playback_url).includes('.mp4')) {
       return unescapeIgUrl(obj.playback_url);
     }
-    const keys = [
-      'media', 'post', 'node', 'items', 'video', 'reel', 'clips_item',
+
+    const safeKeys = [
+      'media', 'video', 'reel', 'clips_item',
       'xdt_shortcode_media', 'shortcode_media', 'clips_metadata',
-      'xdt_api__v1__media__shortcode__web_info', 'carousel_media',
-      'data', 'edges',
     ];
-    for (let i = 0; i < keys.length; i += 1) {
-      const found = extractVideoUrl(obj[keys[i]], depth + 1, seen);
-      if (found) return found;
-    }
-    if (Array.isArray(obj)) {
-      const limit = Math.min(obj.length, 24);
-      for (let i = 0; i < limit; i += 1) {
-        const found = extractVideoUrl(obj[i], depth + 1, seen);
-        if (found) return found;
-      }
-    } else if (depth < 4) {
-      const extra = Object.keys(obj);
-      for (let i = 0; i < extra.length && i < 40; i += 1) {
-        const key = extra[i];
-        if (key === 'children' || key === 'ref' || key === '$$typeof') continue;
-        const found = extractVideoUrl(obj[key], depth + 1, seen);
+    for (let i = 0; i < safeKeys.length; i += 1) {
+      const k = safeKeys[i];
+      if (obj[k] && typeof obj[k] === 'object') {
+        const found = extractVideoUrl(obj[k], depth + 1, seen, targetCode);
         if (found) return found;
       }
     }
+
     return '';
   };
 
@@ -340,16 +339,32 @@
   };
 
   const shortcodeOf = (video) => {
+    if (!video || !(video instanceof HTMLElement)) return '';
     try {
-      const article = video.closest && video.closest('article');
-      const href =
-        (article && article.querySelector('a[href*="/reel/"], a[href*="/p/"]')?.getAttribute('href')) ||
-        location.pathname ||
-        '';
-      const m = String(href).match(/\/(reel|reels|p)\/([^/?#]+)/);
-      if (m) return m[2];
-      const story = String(location.pathname || '').match(/\/stories\/[^/]+\/(\d+)/);
-      return story ? story[1] : '';
+      if (isStoriesPath()) {
+        const story = String(location.pathname || '').match(/\/stories\/[^/]+\/(\d+)/);
+        if (story && story[1]) return story[1];
+      }
+
+      let cur = video;
+      for (let hop = 0; hop < 12 && cur && cur !== document.body; hop += 1) {
+        const links = cur.querySelectorAll('a[href*="/reel/"], a[href*="/reels/"], a[href*="/p/"]');
+        for (let i = 0; i < links.length; i += 1) {
+          const href = links[i].getAttribute('href') || '';
+          const m = href.match(/\/(reel|reels|p)\/([^/?#]+)/);
+          if (m && m[2] && m[2] !== 'videos' && m[2] !== 'reels') {
+            return m[2];
+          }
+        }
+        cur = cur.parentElement;
+      }
+
+      const singleMatch = String(location.pathname || '').match(/^\/(reel|p)\/([^/?#]+)/);
+      if (singleMatch && singleMatch[2] && singleMatch[2] !== 'videos') {
+        return singleMatch[2];
+      }
+
+      return '';
     } catch (_) {
       return '';
     }
@@ -357,57 +372,61 @@
 
   const lookupHarvested = (video) => {
     const code = shortcodeOf(video);
-    if (code && urlByCode.has(code)) return urlByCode.get(code);
-    if (code && urlByPk.has(code)) return urlByPk.get(code);
-    const dur = video && video.duration;
-    if (isFinite(dur) && dur > 0) {
-      for (let i = recentMedia.length - 1; i >= 0; i -= 1) {
-        const item = recentMedia[i];
-        if (item.duration > 0 && Math.abs(item.duration - dur) < 0.2) return item.url;
-      }
-    }
-    if (/\/reels?\/[^/?#]+/.test(location.pathname || '') && recentMedia.length) {
-      return recentMedia[recentMedia.length - 1].url;
+    if (code) {
+      if (urlByCode.has(code)) return urlByCode.get(code);
+      if (urlByPk.has(code)) return urlByPk.get(code);
     }
     return '';
   };
 
   const findVideoUrl = (video) => {
     if (!(video instanceof HTMLVideoElement)) return '';
-    const tagged = video.dataset.igNvcDl;
-    if (tagged && isVideoHttpUrl(tagged)) return tagged;
+    const curSrc = video.currentSrc || video.src || '';
+
+    if (
+      video.dataset.igNvcDl &&
+      video.dataset.igNvcForSrc === curSrc &&
+      isVideoHttpUrl(video.dataset.igNvcDl)
+    ) {
+      return video.dataset.igNvcDl;
+    }
+
+    if (curSrc && !curSrc.startsWith('blob:') && isVideoHttpUrl(curSrc)) {
+      const u = unescapeIgUrl(curSrc);
+      video.dataset.igNvcDl = u;
+      video.dataset.igNvcForSrc = curSrc;
+      return u;
+    }
+
     const harvested = lookupHarvested(video);
-    if (harvested) return harvested;
-    const direct = video.currentSrc || video.src;
-    if (isVideoHttpUrl(direct)) return unescapeIgUrl(direct);
+    if (harvested) {
+      video.dataset.igNvcDl = harvested;
+      video.dataset.igNvcForSrc = curSrc;
+      return harvested;
+    }
+
+    const targetCode = shortcodeOf(video);
     const seen = new Set();
     let el = video;
-    for (let hop = 0; hop < 20 && el; hop += 1) {
+    for (let hop = 0; hop < 6 && el && el !== document.body; hop += 1) {
       let fiber = fiberOf(el);
       let depth = 0;
-      while (fiber && depth < 40) {
+      while (fiber && depth < 8) {
         const url =
-          extractVideoUrl(fiber.memoizedProps, 0, seen) ||
-          extractVideoUrl(fiber.pendingProps, 0, seen);
-        if (url) return url;
+          extractVideoUrl(fiber.memoizedProps, 0, seen, targetCode) ||
+          extractVideoUrl(fiber.pendingProps, 0, seen, targetCode);
+        if (url) {
+          video.dataset.igNvcDl = url;
+          video.dataset.igNvcForSrc = curSrc;
+          return url;
+        }
         fiber = fiber.return;
         depth += 1;
       }
       el = el.parentElement;
     }
-    try {
-      const entries = performance.getEntriesByType('resource');
-      for (let i = entries.length - 1; i >= 0; i -= 1) {
-        const name = entries[i] && entries[i].name;
-        if (
-          isVideoHttpUrl(name) &&
-          (/\.mp4(\?|$)/i.test(name) || /\/t16\//.test(name) || /\/t50\//.test(name) || /\/t2\//.test(name))
-        ) {
-          return String(name);
-        }
-      }
-    } catch (_) {}
-    return lookupHarvested(video) || '';
+
+    return '';
   };
 
   const filenameFor = (video) => {
@@ -422,6 +441,7 @@
     if (btn) btn.title = url ? 'Keep video' : 'Video not found';
     if (url && isVideoHttpUrl(url) && isAllowedCdnHost(url)) {
       video.dataset.igNvcDl = url;
+      video.dataset.igNvcForSrc = video.currentSrc || video.src || '';
     }
     document.documentElement.dispatchEvent(
       new CustomEvent('ig-nvc-keep', {
@@ -442,14 +462,15 @@
       const directVideo =
         (detail.btnId && document.querySelector(`video[data-ig-nvc-id="${detail.btnId}"]`)) || null;
       const btn =
-        !directVideo &&
-        ((detail.btnId && document.querySelector(`.ig-nvc-k[data-ig-nvc-for="${detail.btnId}"]`)) ||
-          document.querySelector('.ig-nvc-k'));
+        !directVideo && detail.btnId
+          ? document.querySelector(`.ig-nvc-k[data-ig-nvc-for="${detail.btnId}"]`)
+          : null;
       const video = directVideo || (btn && videoForDownloadBtn(btn));
       if (!video) return;
       const url = findVideoUrl(video);
       if (!url || !isVideoHttpUrl(url) || !isAllowedCdnHost(url)) return;
       video.dataset.igNvcDl = url;
+      video.dataset.igNvcForSrc = video.currentSrc || video.src || '';
       detail.url = url;
       detail.filename = filenameFor(video);
     },
